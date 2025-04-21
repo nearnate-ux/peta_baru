@@ -1,0 +1,90 @@
+<?php
+	include('../../../lib/db_sqlserver_fin.php');
+
+	$sql= "SELECT
+	TRY_CAST(szLatitude AS FLOAT) AS lat,
+	TRY_CAST(szLongitude AS FLOAT) AS lon,
+	szName,
+	SUM(qty_box) AS qty 
+	FROM dbo.table_volume_outlet_with_target
+	WHERE 
+	TRY_CAST(szLatitude AS FLOAT) IS NOT NULL AND
+	TRY_CAST(szLongitude AS FLOAT) IS NOT NULL
+	GROUP BY szLatitude, szLongitude, szName
+	";
+
+
+	$stmt   = sqlsrv_query($conn_fin, $sql, array(), array("Scrollable" => SQLSRV_CURSOR_KEYSET));
+		if ($stmt === false) {
+    die(print_r(sqlsrv_errors(), true));
+}
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Peta Outlet</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Leaflet CSS -->
+	<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+	<style>
+		body, html {
+			margin: 0;
+			padding: 0;
+			height: 100%;
+		}
+		#map {
+			width: 100%;
+			height: 100vh;
+		}
+	</style>
+</head>
+<body>
+	<div id="map"></div>
+
+	<!-- Leaflet JS -->
+	<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+	<script>
+    // Inisialisasi peta di tengah Indonesia
+		var map = L.map('map').setView([-2.5, 117.5], 5);
+
+    // Basemap OpenStreetMap
+		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			attribution: '&copy; OpenStreetMap contributors'
+		}).addTo(map);
+
+    // Contoh data outlet (statis)
+
+
+
+
+			var outletData = [
+				<?php
+				$first = true;
+				while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+					if (!$first) echo ",";
+					$first = false;
+					?>
+					{
+						"custid": "<?php echo addslashes($row['szName']); ?>",
+						"latitude": <?php echo $row['lat']; ?>,
+						"longitude": <?php echo $row['lon']; ?>,
+						"qty": <?php echo $row['qty']; ?>
+					}
+					console.log(outletData);
+					<?php } ?>
+					];
+
+
+    // Tambahkan marker ke peta
+			outletData.forEach(function(outlet) {
+				var marker = L.marker([outlet.latitude, outlet.longitude]).addTo(map);
+				marker.bindPopup(
+					"<b>CustID:</b> " + outlet.custid +
+					"<br><b>Qty:</b> " + outlet.qty
+					);
+			});
+		</script>
+	</body>
+	</html>
